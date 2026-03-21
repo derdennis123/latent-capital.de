@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { getPosts } from "@/lib/ghost";
+import { getPostUrlAbsolute } from "@/lib/routing";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl =
@@ -48,13 +49,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       });
 
       for (const post of response.posts) {
-        const tagSlug = post.primary_tag?.slug;
-        const postUrl = tagSlug
-          ? `${siteUrl}/${tagSlug}/${post.slug}`
-          : `${siteUrl}/${post.slug}`;
-
         postPages.push({
-          url: postUrl,
+          url: getPostUrlAbsolute(siteUrl, post),
           lastModified: new Date(post.updated_at),
           changeFrequency: "monthly",
           priority: 0.7,
