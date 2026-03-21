@@ -1,0 +1,54 @@
+version: "3.8"
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-ghostpass}
+      MYSQL_DATABASE: ghost
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ghost:
+    image: ghost:5-alpine
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "2368:2368"
+    environment:
+      database__client: mysql
+      database__connection__host: mysql
+      database__connection__port: 3306
+      database__connection__user: root
+      database__connection__password: ${MYSQL_ROOT_PASSWORD:-ghostpass}
+      database__connection__database: ghost
+      url: ${GHOST_URL:-http://localhost:2368}
+      mail__transport: Direct
+    volumes:
+      - ghost_content:/var/lib/ghost/content
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - ghost
+    ports:
+      - "3000:3000"
+    environment:
+      GHOST_URL: http://ghost:2368
+      GHOST_CONTENT_API_KEY: ${GHOST_CONTENT_API_KEY:-}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+
+volumes:
+  mysql_data:
+  ghost_content:
