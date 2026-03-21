@@ -1,0 +1,9 @@
+{
+  "name": "Latent Capital",
+  "short_name": "LC",
+  "icons": [],
+  "theme_color": "#FAFAFA",
+  "background_color": "#FAFAFA",
+  "display": "standalone",
+  "start_url": "/"
+}

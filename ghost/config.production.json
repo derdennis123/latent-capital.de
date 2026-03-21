@@ -1,0 +1,33 @@
+{
+  "url": "https://latent-capital.de",
+  "server": {
+    "host": "0.0.0.0",
+    "port": 2368
+  },
+  "database": {
+    "client": "mysql",
+    "connection": {
+      "host": "mysql",
+      "port": 3306,
+      "user": "root",
+      "password": "",
+      "database": "ghost"
+    }
+  },
+  "mail": {
+    "transport": "SMTP",
+    "options": {
+      "service": "Mailgun",
+      "host": "smtp.mailgun.org",
+      "port": 587,
+      "secure": true,
+      "auth": {
+        "user": "",
+        "pass": ""
+      }
+    }
+  },
+  "logging": {
+    "transports": ["stdout"]
+  }
+}
