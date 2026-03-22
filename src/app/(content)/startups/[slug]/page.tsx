@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Container from "@/components/layout/Container";
 import PostHeader from "@/components/posts/PostHeader";
 import PostContent from "@/components/posts/PostContent";
+import PaidPostContent from "@/components/posts/PaidPostContent";
 import PostGrid from "@/components/posts/PostGrid";
 import { getPostBySlug, getPostsByTag, getAllPostSlugs } from "@/lib/ghost";
 import { createMetadata } from "@/lib/seo/metadata";
@@ -50,6 +51,8 @@ export default async function StartupPage({ params }: StartupPageProps) {
   const post = await getPostBySlug(slug);
   if (!post) notFound();
 
+  const isPaid = post.visibility === "paid" || post.visibility === "members";
+
   let relatedPosts: typeof post[] = [];
   try {
     const related = await getPostsByTag("startup", { limit: 4 });
@@ -70,7 +73,11 @@ export default async function StartupPage({ params }: StartupPageProps) {
       <article>
         <Container className="py-12">
           <PostHeader post={post} backLink="/startups" backLabel="Startups" />
-          <PostContent html={post.html ?? ""} />
+          {isPaid ? (
+            <PaidPostContent html={post.html ?? ""} />
+          ) : (
+            <PostContent html={post.html ?? ""} />
+          )}
         </Container>
       </article>
 

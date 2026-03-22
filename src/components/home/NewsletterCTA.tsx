@@ -25,8 +25,7 @@ export default function NewsletterCTA({ readerCount }: NewsletterCTAProps) {
               className="text-[#666] text-base sm:text-lg leading-relaxed mb-8"
               style={{ fontFamily: "Inter, sans-serif" }}
             >
-              Die wichtigsten Entwicklungen aus dem deutschen AI-Ökosystem
-              — kompakt und kuratiert, direkt in dein Postfach.
+              AI verstehen, bevor es alle anderen tun. Wöchentlich in dein Postfach.
             </p>
             {readerCount && readerCount > 0 && (
               <p
