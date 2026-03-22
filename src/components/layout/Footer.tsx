@@ -33,8 +33,8 @@ export default function Footer() {
               className="text-sm text-[#666] max-w-sm leading-relaxed"
               style={{ fontFamily: "Inter, sans-serif" }}
             >
-              AI-gesteuerte Analysen und kuratierte Einblicke in Startups,
-              Technologie und Innovation im deutschsprachigen Raum.
+              Deep Dives, Interviews und Analysen aus der Welt der künstlichen
+              Intelligenz. Von Foundation Models bis Finanzierung.
             </p>
           </div>
 
@@ -60,7 +60,7 @@ export default function Footer() {
               ))}
               <li>
                 <Link
-                  href="/subscribe"
+                  href="/newsletter"
                   className="text-sm text-[#666] hover:text-[#1a1a1a] transition-colors"
                   style={{ fontFamily: "Inter, sans-serif" }}
                 >
