@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import Button from "@/components/ui/Button";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 const navLinks = [
   {
@@ -21,6 +22,7 @@ const navLinks = [
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
+  const { user, loading } = useAuth();
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/70 backdrop-blur-xl border-b border-black/5">
@@ -86,11 +88,30 @@ export default function Navbar() {
             ))}
           </div>
 
-          {/* Right side */}
-          <div className="hidden md:block">
-            <Button variant="secondary" size="sm" href="/subscribe">
-              Subscribe
-            </Button>
+          {/* Right side — auth-aware */}
+          <div className="hidden md:flex items-center gap-3">
+            {loading ? (
+              <div className="w-20 h-8 rounded-full bg-black/5 animate-pulse" />
+            ) : user ? (
+              <Link
+                href="/account"
+                className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/60 backdrop-blur-md border border-black/5 hover:bg-white/80 transition-all text-sm font-medium text-[#1a1a1a]"
+              >
+                <span className="w-6 h-6 rounded-full bg-[#6C5CE7]/10 flex items-center justify-center text-xs font-bold text-[#6C5CE7]">
+                  {(user.name || user.email)[0].toUpperCase()}
+                </span>
+                Konto
+              </Link>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" href="/login">
+                  Login
+                </Button>
+                <Button variant="secondary" size="sm" href="/subscribe">
+                  Subscribe
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Mobile hamburger */}
@@ -161,10 +182,25 @@ export default function Navbar() {
                   </Link>
                 )
               )}
-              <div className="pt-4">
-                <Button variant="secondary" size="sm" href="/subscribe">
-                  Subscribe
-                </Button>
+              <div className="pt-4 space-y-3">
+                {user ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    href="/account"
+                  >
+                    Mein Konto
+                  </Button>
+                ) : (
+                  <>
+                    <Button variant="primary" size="sm" href="/login">
+                      Anmelden
+                    </Button>
+                    <Button variant="secondary" size="sm" href="/subscribe">
+                      Subscribe
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>

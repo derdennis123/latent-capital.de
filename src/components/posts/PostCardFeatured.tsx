@@ -3,19 +3,12 @@ import Image from "next/image";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import type { GhostPost } from "@/lib/ghost/types";
+import { getPostUrl } from "@/lib/routing";
 import GlassCard from "@/components/ui/GlassCard";
 import Badge from "@/components/ui/Badge";
 
 interface PostCardFeaturedProps {
   post: GhostPost;
-}
-
-function getPostUrl(post: GhostPost): string {
-  const tagSlug = post.primary_tag?.slug;
-  if (tagSlug) {
-    return `/${tagSlug}/${post.slug}`;
-  }
-  return `/${post.slug}`;
 }
 
 export default function PostCardFeatured({ post }: PostCardFeaturedProps) {

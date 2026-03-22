@@ -1,5 +1,26 @@
 import { SignJWT } from "jose";
 
+export interface GhostMember {
+  id: string;
+  email: string;
+  name: string | null;
+  status: "free" | "paid" | "comped";
+  avatar_image: string | null;
+  subscriptions: Array<{
+    id: string;
+    status: string;
+    price: {
+      amount: number;
+      currency: string;
+      interval: string;
+    };
+    current_period_end: string;
+  }>;
+  labels: Array<{ id: string; name: string; slug: string }>;
+  created_at: string;
+  updated_at: string;
+}
+
 function getAdminConfig() {
   const url = process.env.GHOST_URL || process.env.NEXT_PUBLIC_GHOST_URL;
   const key = process.env.GHOST_ADMIN_API_KEY;
@@ -13,11 +34,6 @@ function getAdminConfig() {
   return { url, key };
 }
 
-/**
- * Ghost Admin API keys are in the format: {id}:{secret}
- * The id is used as the JWT kid header, the secret is used
- * to sign the token.
- */
 function parseAdminApiKey(apiKey: string): {
   id: string;
   secret: Uint8Array;
@@ -30,7 +46,6 @@ function parseAdminApiKey(apiKey: string): {
     );
   }
 
-  // Ghost Admin API secrets are hex-encoded
   const secretBytes = new Uint8Array(
     secret.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16))
   );
@@ -81,6 +96,8 @@ async function adminFetch<T>(
   return response.json() as Promise<T>;
 }
 
+// --- Public exports ---
+
 export async function subscribeMember(
   email: string
 ): Promise<{ id: string; email: string }> {
@@ -107,4 +124,73 @@ export async function getMemberCount(): Promise<number> {
   }>("members?limit=1");
 
   return response.meta.pagination.total;
+}
+
+export async function getMemberByEmail(
+  email: string
+): Promise<GhostMember | null> {
+  try {
+    const response = await adminFetch<{
+      members: GhostMember[];
+    }>(`members?filter=email:'${encodeURIComponent(email)}'&limit=1`);
+
+    return response.members[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function getMemberById(id: string): Promise<GhostMember | null> {
+  try {
+    const response = await adminFetch<{
+      members: GhostMember[];
+    }>(`members/${id}`);
+
+    return response.members[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function createOrGetMember(
+  email: string,
+  name?: string
+): Promise<GhostMember> {
+  // Check if member already exists
+  const existing = await getMemberByEmail(email);
+  if (existing) return existing;
+
+  // Create new free member
+  const response = await adminFetch<{
+    members: GhostMember[];
+  }>("members", {
+    method: "POST",
+    body: JSON.stringify({
+      members: [
+        {
+          email,
+          name: name ?? "",
+          labels: [{ name: "newsletter" }],
+        },
+      ],
+    }),
+  });
+
+  return response.members[0];
+}
+
+export async function updateMember(
+  id: string,
+  data: { name?: string; labels?: Array<{ name: string }> }
+): Promise<GhostMember> {
+  const response = await adminFetch<{
+    members: GhostMember[];
+  }>(`members/${id}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      members: [data],
+    }),
+  });
+
+  return response.members[0];
 }

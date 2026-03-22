@@ -1,13 +1,6 @@
 import { getPosts } from "@/lib/ghost";
 import type { GhostPost } from "@/lib/ghost";
-
-function getPostUrl(siteUrl: string, post: GhostPost): string {
-  const tagSlug = post.primary_tag?.slug;
-  if (tagSlug) {
-    return `${siteUrl}/${tagSlug}/${post.slug}`;
-  }
-  return `${siteUrl}/${post.slug}`;
-}
+import { getPostUrlAbsolute } from "@/lib/routing";
 
 function escapeXml(str: string): string {
   return str
@@ -32,7 +25,7 @@ export async function GET() {
 
   const items = posts
     .map((post) => {
-      const postUrl = getPostUrl(siteUrl, post);
+      const postUrl = getPostUrlAbsolute(siteUrl, post);
       const pubDate = post.published_at
         ? new Date(post.published_at).toUTCString()
         : "";

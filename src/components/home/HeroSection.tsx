@@ -23,9 +23,9 @@ export default function HeroSection() {
             className="text-lg sm:text-xl text-[#666] leading-relaxed mb-10 max-w-2xl mx-auto"
             style={{ fontFamily: "Inter, sans-serif" }}
           >
-            Kuratierte Analysen, Deep Dives und Interviews aus dem
-            deutschsprachigen AI-&Ouml;kosystem &mdash; recherchiert mit
-            k&uuml;nstlicher Intelligenz, geschrieben f&uuml;r Menschen.
+            Deep Dives, Interviews und Analysen aus der Welt der
+            k&uuml;nstlichen Intelligenz. Von Foundation Models bis
+            Finanzierung.
           </p>
           <div className="max-w-md mx-auto">
             <NewsletterForm />
