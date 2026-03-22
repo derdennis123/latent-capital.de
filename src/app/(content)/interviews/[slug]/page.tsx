@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Container from "@/components/layout/Container";
 import PostHeader from "@/components/posts/PostHeader";
 import PostContent from "@/components/posts/PostContent";
+import PaidPostContent from "@/components/posts/PaidPostContent";
 import PostGrid from "@/components/posts/PostGrid";
 import { getPostBySlug, getPostsByTag, getAllPostSlugs } from "@/lib/ghost";
 import { createMetadata } from "@/lib/seo/metadata";
@@ -50,6 +51,8 @@ export default async function InterviewPage({ params }: InterviewPageProps) {
   const post = await getPostBySlug(slug);
   if (!post) notFound();
 
+  const isPaid = post.visibility === "paid" || post.visibility === "members";
+
   let relatedPosts: typeof post[] = [];
   try {
     const related = await getPostsByTag("interview", { limit: 4 });
@@ -70,28 +73,34 @@ export default async function InterviewPage({ params }: InterviewPageProps) {
       <article>
         <Container className="py-12">
           <PostHeader post={post} />
-          <PostContent html={post.html ?? ""} />
+          {isPaid ? (
+            <PaidPostContent html={post.html ?? ""} />
+          ) : (
+            <>
+              <PostContent html={post.html ?? ""} />
 
-          {/* Share buttons */}
-          <div className="mt-12 pt-8 border-t border-black/5 flex items-center gap-4">
-            <span className="text-sm text-[#666] font-medium">Teilen:</span>
-            <a
-              href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(post.title)}&url=${encodeURIComponent(`https://latent-capital.de/interviews/${post.slug}`)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-[#6C5CE7] hover:underline"
-            >
-              Twitter
-            </a>
-            <a
-              href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(`https://latent-capital.de/interviews/${post.slug}`)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-[#6C5CE7] hover:underline"
-            >
-              LinkedIn
-            </a>
-          </div>
+              {/* Share buttons */}
+              <div className="mt-12 pt-8 border-t border-black/5 flex items-center gap-4">
+                <span className="text-sm text-[#666] font-medium">Teilen:</span>
+                <a
+                  href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(post.title)}&url=${encodeURIComponent(`https://latent-capital.de/interviews/${post.slug}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-[#6C5CE7] hover:underline"
+                >
+                  Twitter
+                </a>
+                <a
+                  href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(`https://latent-capital.de/interviews/${post.slug}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-[#6C5CE7] hover:underline"
+                >
+                  LinkedIn
+                </a>
+              </div>
+            </>
+          )}
         </Container>
       </article>
 

@@ -1,4 +1,5 @@
 import { ghostFetch } from "@/lib/ghost/client";
+import { adminFetchPost } from "@/lib/ghost/admin-posts";
 import type { GhostPost, GhostPostsResponse } from "@/lib/ghost/types";
 
 interface GetPostsOptions {
@@ -34,7 +35,18 @@ export async function getPostBySlug(
       include: "tags,authors",
     });
 
-    return response.posts[0] ?? null;
+    const post = response.posts[0] ?? null;
+
+    // For paid/members posts, Content API returns html as null.
+    // Fetch full HTML via Admin API so we can show a preview teaser.
+    if (post && !post.html && (post.visibility === "paid" || post.visibility === "members")) {
+      const fullHtml = await adminFetchPost(slug);
+      if (fullHtml) {
+        post.html = fullHtml;
+      }
+    }
+
+    return post;
   } catch (error) {
     if (error instanceof Error && "status" in error && (error as any).status === 404) {
       return null;
