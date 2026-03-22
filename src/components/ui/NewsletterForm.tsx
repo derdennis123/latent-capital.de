@@ -26,8 +26,9 @@ export default function NewsletterForm() {
         throw new Error(data.error || "Etwas ist schiefgelaufen.");
       }
 
+      const data = await res.json();
       setStatus("success");
-      setMessage("Erfolgreich abonniert!");
+      setMessage(data.message || "Bitte überprüfe dein Postfach und bestätige deine Anmeldung.");
       setEmail("");
     } catch (err) {
       setStatus("error");
