@@ -117,11 +117,10 @@ function LoginForm() {
       </form>
 
       <p className="mt-6 text-center text-xs text-[#999]">
-        Mit der Anmeldung akzeptierst du unsere{" "}
-        <Link href="/datenschutz" className="text-[#6C5CE7] hover:underline">
-          Datenschutzrichtlinie
+        Noch kein Premium-Mitglied?{" "}
+        <Link href="/membership" className="text-[#6C5CE7] hover:underline">
+          Jetzt Premium werden
         </Link>
-        .
       </p>
     </>
   );
@@ -136,10 +135,11 @@ export default function LoginPage() {
             className="text-3xl font-bold text-[#1a1a1a] mb-2"
             style={{ fontFamily: "'Playfair Display', serif" }}
           >
-            Anmelden
+            Premium-Login
           </h1>
           <p className="text-[#666]">
-            Melde dich an oder erstelle ein kostenloses Konto.
+            Anmelden für Premium-Mitglieder. Gib deine E-Mail-Adresse ein
+            und wir senden dir einen Login-Link.
           </p>
         </div>
 
