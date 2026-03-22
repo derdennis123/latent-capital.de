@@ -110,7 +110,7 @@ export default function AccountPage() {
                 href="/membership"
                 className="inline-block py-2.5 px-6 rounded-full bg-[#6C5CE7] text-white font-medium text-sm hover:bg-[#5A4BD1] transition-colors"
               >
-                Premium werden &mdash; ab &euro;19/Monat
+                Premium werden &mdash; ab &euro;29/Monat
               </a>
             </div>
           )}

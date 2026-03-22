@@ -45,7 +45,7 @@ export default function MembershipPage() {
               className="text-3xl font-bold text-[#1a1a1a]"
               style={{ fontFamily: "Inter, sans-serif" }}
             >
-              &euro;19
+              &euro;29
             </span>
             <span
               className="text-sm text-[#666] ml-1"
@@ -113,7 +113,7 @@ export default function MembershipPage() {
               className="text-3xl font-bold text-[#1a1a1a]"
               style={{ fontFamily: "Inter, sans-serif" }}
             >
-              &euro;149
+              &euro;249
             </span>
             <span
               className="text-sm text-[#666] ml-1"
@@ -125,7 +125,7 @@ export default function MembershipPage() {
               className="block text-xs text-[#6C5CE7] mt-1"
               style={{ fontFamily: "Inter, sans-serif" }}
             >
-              Entspricht &euro;12,42 / Monat
+              Entspricht &euro;20,75 / Monat
             </span>
           </div>
           <ul className="space-y-3 mb-8 flex-1">

@@ -53,7 +53,7 @@ src/
 │   ├── impressum/page.tsx
 │   ├── layout.tsx                # Root layout mit Navbar + Footer
 │   ├── login/page.tsx            # Magic Link login
-│   ├── membership/page.tsx       # Premium-Pricing (€19/Mo, €149/Jahr)
+│   ├── membership/page.tsx       # Premium-Pricing (€29/Mo, €249/Jahr)
 │   ├── newsletter/page.tsx       # Newsletter signup + Archiv
 │   ├── not-found.tsx
 │   ├── page.tsx                  # Homepage
@@ -134,7 +134,7 @@ src/
 | `/themen` | Themen/Tags Übersicht |
 | `/themen/[slug]` | Artikel eines Themas |
 | `/newsletter` | Newsletter-Signup + Archiv |
-| `/membership` | Premium-Pricing (€19/Mo, €149/Jahr) |
+| `/membership` | Premium-Pricing (€29/Mo, €249/Jahr) |
 | `/login` | Magic Link Login |
 | `/about` | Über uns |
 | `/impressum` | Impressum |
@@ -194,7 +194,7 @@ src/
 | Tier | Zugang |
 |------|--------|
 | Besucher | Alle öffentlichen Artikel, Newsletter per E-Mail (kein Account nötig) |
-| Paid Member (€19/Mo oder €149/Jahr) | Alles freigeschaltet + Premium-Newsletter |
+| Paid Member (€29/Mo oder €249/Jahr) | Alles freigeschaltet + Premium-Newsletter |
 
 ---
 
