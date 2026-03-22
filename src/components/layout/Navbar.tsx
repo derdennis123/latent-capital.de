@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import Button from "@/components/ui/Button";
 import { useAuth } from "@/components/auth/AuthProvider";
 
 const navLinks = [
@@ -18,6 +17,171 @@ const navLinks = [
   { label: "INSIGHTS", href: "/deep-dives" },
   { label: "LIBRARY", href: "/themen" },
 ];
+
+function NewsletterDropdown() {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    if (open) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email) return;
+    setStatus("loading");
+    try {
+      const res = await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) throw new Error();
+      setStatus("success");
+      setEmail("");
+    } catch {
+      setStatus("error");
+    }
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => { setOpen(!open); setStatus("idle"); }}
+        className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white/60 backdrop-blur-md border border-black/5 hover:bg-white/80 transition-all text-sm font-medium text-[#1a1a1a] cursor-pointer"
+        style={{ fontFamily: "Inter, sans-serif" }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="4" width="20" height="16" rx="2" />
+          <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+        </svg>
+        Newsletter
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.95 }}
+            transition={{ duration: 0.15 }}
+            className="absolute right-0 top-full mt-2 w-72 bg-white/90 backdrop-blur-xl rounded-xl border border-black/5 shadow-lg p-4"
+          >
+            {status === "success" ? (
+              <p className="text-sm text-[#1a1a1a] font-medium text-center py-2" style={{ fontFamily: "Inter, sans-serif" }}>
+                Erfolgreich abonniert!
+              </p>
+            ) : (
+              <>
+                <p className="text-xs text-[#666] mb-3" style={{ fontFamily: "Inter, sans-serif" }}>
+                  Wöchentliches AI-Briefing. Kostenlos.
+                </p>
+                <form onSubmit={handleSubmit} className="flex gap-2">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="E-Mail-Adresse"
+                    required
+                    className="flex-1 px-3 py-2 rounded-lg bg-white border border-black/10 text-sm text-[#1a1a1a] placeholder:text-[#999] outline-none focus:ring-2 focus:ring-[#6C5CE7]/30 transition-all"
+                    style={{ fontFamily: "Inter, sans-serif" }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={status === "loading"}
+                    className="px-3 py-2 rounded-lg bg-[#6C5CE7] text-white text-sm font-medium hover:bg-[#5A4BD1] transition-colors disabled:opacity-50 cursor-pointer"
+                    style={{ fontFamily: "Inter, sans-serif" }}
+                  >
+                    {status === "loading" ? "..." : "OK"}
+                  </button>
+                </form>
+                {status === "error" && (
+                  <p className="text-xs text-red-500 mt-2" style={{ fontFamily: "Inter, sans-serif" }}>
+                    Etwas ist schiefgelaufen.
+                  </p>
+                )}
+              </>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function UserDropdown() {
+  const { user, logout } = useAuth();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    if (open) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  if (!user) return null;
+
+  const initials = user.name
+    ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+    : user.email[0].toUpperCase();
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-8 h-8 rounded-full bg-[#6C5CE7]/10 flex items-center justify-center text-xs font-bold text-[#6C5CE7] hover:bg-[#6C5CE7]/20 transition-colors cursor-pointer"
+      >
+        {initials}
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.95 }}
+            transition={{ duration: 0.15 }}
+            className="absolute right-0 top-full mt-2 w-48 bg-white/90 backdrop-blur-xl rounded-xl border border-black/5 shadow-lg py-2"
+          >
+            <div className="px-4 py-2 border-b border-black/5">
+              <p className="text-xs text-[#666] truncate" style={{ fontFamily: "Inter, sans-serif" }}>
+                {user.email}
+              </p>
+            </div>
+            <Link
+              href="/account"
+              onClick={() => setOpen(false)}
+              className="block px-4 py-2 text-sm text-[#666] hover:text-[#1a1a1a] hover:bg-black/5 transition-colors"
+              style={{ fontFamily: "Inter, sans-serif" }}
+            >
+              Mein Konto
+            </Link>
+            <button
+              onClick={() => { logout(); setOpen(false); }}
+              className="w-full text-left px-4 py-2 text-sm text-[#666] hover:text-[#1a1a1a] hover:bg-black/5 transition-colors cursor-pointer"
+              style={{ fontFamily: "Inter, sans-serif" }}
+            >
+              Abmelden
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -93,23 +257,21 @@ export default function Navbar() {
             {loading ? (
               <div className="w-20 h-8 rounded-full bg-black/5 animate-pulse" />
             ) : user ? (
-              <Link
-                href="/account"
-                className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/60 backdrop-blur-md border border-black/5 hover:bg-white/80 transition-all text-sm font-medium text-[#1a1a1a]"
-              >
-                <span className="w-6 h-6 rounded-full bg-[#6C5CE7]/10 flex items-center justify-center text-xs font-bold text-[#6C5CE7]">
-                  {(user.name || user.email)[0].toUpperCase()}
-                </span>
-                Konto
-              </Link>
+              <UserDropdown />
             ) : (
               <>
-                <Button variant="ghost" size="sm" href="/login">
-                  Login
-                </Button>
-                <Button variant="secondary" size="sm" href="/subscribe">
-                  Subscribe
-                </Button>
+                <NewsletterDropdown />
+                <Link
+                  href="/membership"
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[#6C5CE7] text-white text-sm font-medium hover:bg-[#5A4BD1] transition-colors"
+                  style={{ fontFamily: "Inter, sans-serif" }}
+                >
+                  Premium werden
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12h14" />
+                    <path d="m12 5 7 7-7 7" />
+                  </svg>
+                </Link>
               </>
             )}
           </div>
@@ -184,21 +346,31 @@ export default function Navbar() {
               )}
               <div className="pt-4 space-y-3">
                 {user ? (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    href="/account"
-                  >
-                    Mein Konto
-                  </Button>
+                  <>
+                    <Link
+                      href="/account"
+                      className="block text-sm text-[#666] hover:text-[#1a1a1a]"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      Mein Konto
+                    </Link>
+                  </>
                 ) : (
                   <>
-                    <Button variant="primary" size="sm" href="/login">
-                      Anmelden
-                    </Button>
-                    <Button variant="secondary" size="sm" href="/subscribe">
-                      Subscribe
-                    </Button>
+                    <Link
+                      href="/newsletter"
+                      className="block text-sm text-[#666] hover:text-[#1a1a1a]"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      Newsletter
+                    </Link>
+                    <Link
+                      href="/membership"
+                      className="inline-block px-6 py-2.5 rounded-full bg-[#6C5CE7] text-white text-sm font-medium hover:bg-[#5A4BD1] transition-colors"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      Premium werden
+                    </Link>
                   </>
                 )}
               </div>

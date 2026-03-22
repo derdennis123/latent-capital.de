@@ -60,7 +60,7 @@ export default function Footer() {
               ))}
               <li>
                 <Link
-                  href="/subscribe"
+                  href="/newsletter"
                   className="text-sm text-[#666] hover:text-[#1a1a1a] transition-colors"
                   style={{ fontFamily: "Inter, sans-serif" }}
                 >

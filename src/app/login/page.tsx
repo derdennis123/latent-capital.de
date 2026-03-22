@@ -11,8 +11,6 @@ const ERROR_MESSAGES: Record<string, string> = {
   invalid_token: "Der Link ist ungültig. Bitte fordere einen neuen an.",
   expired: "Der Link ist abgelaufen. Bitte fordere einen neuen an.",
   server: "Ein Fehler ist aufgetreten. Bitte versuche es erneut.",
-  google_denied: "Google-Anmeldung wurde abgebrochen.",
-  google_failed: "Google-Anmeldung fehlgeschlagen. Bitte versuche es erneut.",
 };
 
 function LoginForm() {
