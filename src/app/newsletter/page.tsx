@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Container from "@/components/layout/Container";
 import NewsletterForm from "@/components/ui/NewsletterForm";
 import PostCard from "@/components/posts/PostCard";
 import GlassCard from "@/components/ui/GlassCard";
+import ConfirmationBanner from "./ConfirmationBanner";
 import { getPostsByTag } from "@/lib/ghost";
 import { createMetadata } from "@/lib/seo/metadata";
 
@@ -29,6 +31,10 @@ export default async function NewsletterPage() {
 
   return (
     <Container className="py-16">
+      <Suspense>
+        <ConfirmationBanner />
+      </Suspense>
+
       <div className="mx-auto max-w-2xl text-center">
         <h1 className="font-serif text-4xl md:text-5xl font-bold mb-4">
           Newsletter
