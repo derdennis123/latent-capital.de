@@ -21,7 +21,9 @@ export async function POST(request: NextRequest) {
 
     const siteUrl =
       process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-    const successUrl = `${siteUrl}/membership?success=true`;
+    // {CHECKOUT_SESSION_ID} is a Stripe template variable replaced with the
+    // actual session ID on redirect, enabling instant post-checkout login.
+    const successUrl = `${siteUrl}/membership?success=true&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${siteUrl}/membership?cancelled=true`;
 
     // If user is logged in, create checkout directly via Stripe API.

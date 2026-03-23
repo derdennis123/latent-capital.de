@@ -2,7 +2,7 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 
 export default function CheckoutBanner() {
@@ -11,63 +11,77 @@ export default function CheckoutBanner() {
   const { user, refresh } = useAuth();
   const success = searchParams.get("success");
   const cancelled = searchParams.get("cancelled");
+  const sessionId = searchParams.get("session_id");
 
-  const [refreshing, setRefreshing] = useState(false);
-  const [upgraded, setUpgraded] = useState(false);
+  const [loginState, setLoginState] = useState<
+    "idle" | "logging-in" | "success" | "error"
+  >("idle");
   const [email, setEmail] = useState("");
   const [magicLinkState, setMagicLinkState] = useState<
     "idle" | "loading" | "sent" | "error"
   >("idle");
+  const loginAttempted = useRef(false);
 
-  // Auto-refresh session for logged-in users after successful checkout
-  const attemptRefresh = useCallback(async () => {
-    if (!user || upgraded || refreshing) return;
+  // Instant login via Stripe session verification
+  const attemptCheckoutLogin = useCallback(async () => {
+    if (!sessionId || loginAttempted.current) return;
+    loginAttempted.current = true;
+    setLoginState("logging-in");
 
-    setRefreshing(true);
+    try {
+      const res = await fetch("/api/auth/checkout-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      });
 
-    // Retry a few times — Ghost may need a moment to process the Stripe webhook
-    for (let attempt = 0; attempt < 5; attempt++) {
-      try {
-        const res = await fetch("/api/auth/refresh", { method: "POST" });
-        if (res.ok) {
-          const data = (await res.json()) as {
-            user: { status: string } | null;
-          };
-          if (
-            data.user &&
-            (data.user.status === "paid" || data.user.status === "comped")
-          ) {
-            setUpgraded(true);
-            await refresh();
-            return;
-          }
+      if (res.ok) {
+        const data = (await res.json()) as {
+          user: { status: string } | null;
+        };
+        if (
+          data.user &&
+          (data.user.status === "paid" || data.user.status === "comped")
+        ) {
+          setLoginState("success");
+          await refresh();
+          return;
         }
-      } catch {
-        // ignore, retry
       }
 
-      // Wait before retrying (1s, 2s, 3s, 4s)
-      if (attempt < 4) {
-        await new Promise((r) => setTimeout(r, (attempt + 1) * 1000));
-      }
+      // Checkout login didn't result in paid status — fall back to manual flow
+      setLoginState("error");
+    } catch {
+      setLoginState("error");
     }
+  }, [sessionId, refresh]);
 
-    setRefreshing(false);
-  }, [user, upgraded, refreshing, refresh]);
-
+  // Trigger instant login when we have a session_id
   useEffect(() => {
-    if (success === "true" && user && user.status === "free") {
-      attemptRefresh();
+    if (success === "true" && sessionId) {
+      attemptCheckoutLogin();
     }
-  }, [success, user, attemptRefresh]);
+  }, [success, sessionId, attemptCheckoutLogin]);
 
-  // Redirect upgraded users to account
+  // Fallback: if user was already logged in and session refreshed shows paid
   useEffect(() => {
-    if (upgraded) {
-      const timer = setTimeout(() => router.push("/account"), 2000);
+    if (
+      success === "true" &&
+      user &&
+      (user.status === "paid" || user.status === "comped") &&
+      loginState !== "success"
+    ) {
+      setLoginState("success");
+    }
+  }, [success, user, loginState]);
+
+  // Redirect after successful login
+  useEffect(() => {
+    if (loginState === "success") {
+      const timer = setTimeout(() => router.push("/"), 2500);
       return () => clearTimeout(timer);
     }
-  }, [upgraded, router]);
+  }, [loginState, router]);
 
   async function handleSendMagicLink(e: React.FormEvent) {
     e.preventDefault();
@@ -88,8 +102,8 @@ export default function CheckoutBanner() {
   }
 
   if (success === "true") {
-    // User was logged in and upgrade succeeded
-    if (upgraded) {
+    // Login successful — show welcome message
+    if (loginState === "success") {
       return (
         <div className="mx-auto max-w-2xl mb-12 p-8 rounded-2xl bg-white/60 backdrop-blur-xl border border-[#6C5CE7]/20 text-center">
           <div className="text-4xl mb-4">&#10003;</div>
@@ -103,15 +117,14 @@ export default function CheckoutBanner() {
             className="text-[#666] leading-relaxed"
             style={{ fontFamily: "Inter, sans-serif" }}
           >
-            Dein Account wurde auf Premium aktualisiert. Du wirst gleich
-            weitergeleitet...
+            Dein Premium-Zugang ist aktiv. Du wirst gleich weitergeleitet...
           </p>
         </div>
       );
     }
 
-    // User was logged in, still refreshing
-    if (user && user.status === "free" && refreshing) {
+    // Verifying payment / logging in
+    if (loginState === "logging-in") {
       return (
         <div className="mx-auto max-w-2xl mb-12 p-8 rounded-2xl bg-white/60 backdrop-blur-xl border border-[#6C5CE7]/20 text-center">
           <div className="animate-spin text-4xl mb-4">&#9881;</div>
@@ -119,7 +132,7 @@ export default function CheckoutBanner() {
             className="text-2xl font-bold text-[#1a1a1a] mb-3"
             style={{ fontFamily: "'Playfair Display', serif" }}
           >
-            Zahlung wird verarbeitet...
+            Zahlung wird verifiziert...
           </h2>
           <p
             className="text-[#666] leading-relaxed"
@@ -158,8 +171,8 @@ export default function CheckoutBanner() {
       );
     }
 
-    // User is NOT logged in — need to send magic link
-    if (!user) {
+    // Instant login failed or no session_id — show magic link fallback
+    if (loginState === "error" || !sessionId) {
       if (magicLinkState === "sent") {
         return (
           <div className="mx-auto max-w-2xl mb-12 p-8 rounded-2xl bg-white/60 backdrop-blur-xl border border-[#6C5CE7]/20 text-center">
