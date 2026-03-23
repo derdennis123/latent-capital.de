@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTiers, createCheckoutSession } from "@/lib/members/api";
+import { getSession } from "@/lib/auth/session";
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,11 +29,16 @@ export async function POST(request: NextRequest) {
     const siteUrl =
       process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
+    // If user is logged in, pass their email to pre-fill Stripe checkout
+    const session = await getSession();
+    const customerEmail = session?.email;
+
     const checkoutUrl = await createCheckoutSession(
       paidTier.id,
       cadence,
       `${siteUrl}/membership?success=true`,
-      `${siteUrl}/membership?cancelled=true`
+      `${siteUrl}/membership?cancelled=true`,
+      customerEmail
     );
 
     return NextResponse.json({ url: checkoutUrl });

@@ -257,7 +257,8 @@ export async function createCheckoutSession(
   tierId: string,
   cadence: "month" | "year",
   successUrl: string,
-  cancelUrl: string
+  cancelUrl: string,
+  customerEmail?: string
 ): Promise<string> {
   const config = getAdminConfig();
 
@@ -266,15 +267,21 @@ export async function createCheckoutSession(
     config.url
   );
 
+  const body: Record<string, string> = {
+    tierId,
+    cadence,
+    successUrl,
+    cancelUrl,
+  };
+
+  if (customerEmail) {
+    body.customerEmail = customerEmail;
+  }
+
   const response = await fetch(url.toString(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      tierId,
-      cadence,
-      successUrl,
-      cancelUrl,
-    }),
+    body: JSON.stringify(body),
     cache: "no-store",
   });
 
