@@ -233,3 +233,113 @@ export async function unsubscribeMember(
 
   return response.members[0];
 }
+
+export interface GhostTier {
+  id: string;
+  name: string;
+  slug: string;
+  active: boolean;
+  type: "free" | "paid";
+  monthly_price: number | null;
+  yearly_price: number | null;
+  currency: string | null;
+}
+
+export async function getTiers(): Promise<GhostTier[]> {
+  const response = await adminFetch<{
+    tiers: GhostTier[];
+  }>("tiers");
+
+  return response.tiers;
+}
+
+export async function createCheckoutSession(
+  tierId: string,
+  cadence: "month" | "year",
+  successUrl: string,
+  cancelUrl: string
+): Promise<string> {
+  const config = getAdminConfig();
+
+  const url = new URL(
+    "/members/api/create-stripe-checkout-session/",
+    config.url
+  );
+
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      tierId,
+      cadence,
+      successUrl,
+      cancelUrl,
+    }),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(
+      `Ghost checkout session error (${response.status}): ${errorBody}`
+    );
+  }
+
+  const data = (await response.json()) as { url: string };
+  return data.url;
+}
+
+export async function createPortalSession(
+  memberId: string,
+  returnUrl: string
+): Promise<string> {
+  const stripeKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeKey) {
+    throw new Error("STRIPE_SECRET_KEY environment variable is required");
+  }
+
+  // Get member to find Stripe customer ID
+  const member = await getMemberById(memberId);
+  if (!member) throw new Error("Member not found");
+
+  const subscription = member.subscriptions[0];
+  if (!subscription) throw new Error("No active subscription");
+
+  // The Ghost Admin API includes customer ID in subscription data
+  // We need to fetch with the full subscription include
+  const fullMember = await adminFetch<{
+    members: Array<{
+      subscriptions: Array<{
+        customer: { id: string };
+      }>;
+    }>;
+  }>(`members/${memberId}?include=subscriptions`);
+
+  const customerId = fullMember.members[0]?.subscriptions[0]?.customer?.id;
+  if (!customerId) throw new Error("No Stripe customer found");
+
+  // Create Stripe billing portal session via Stripe API
+  const formData = new URLSearchParams();
+  formData.set("customer", customerId);
+  formData.set("return_url", returnUrl);
+
+  const portalResponse = await fetch(
+    "https://api.stripe.com/v1/billing_portal/sessions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${stripeKey}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: formData,
+    }
+  );
+
+  if (!portalResponse.ok) {
+    const errorBody = await portalResponse.text();
+    throw new Error(`Stripe portal error (${portalResponse.status}): ${errorBody}`);
+  }
+
+  const portal = (await portalResponse.json()) as { url: string };
+  return portal.url;
+}

@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Container from "@/components/layout/Container";
 import { createMetadata } from "@/lib/seo/metadata";
+import CheckoutButton from "./CheckoutButton";
+import CheckoutBanner from "./CheckoutBanner";
 
 export function generateMetadata(): Metadata {
   return createMetadata({
@@ -14,6 +17,10 @@ export function generateMetadata(): Metadata {
 export default function MembershipPage() {
   return (
     <Container className="py-16">
+      <Suspense fallback={null}>
+        <CheckoutBanner />
+      </Suspense>
+
       <div className="mx-auto max-w-2xl text-center mb-16">
         <h1
           className="font-serif text-4xl md:text-5xl font-bold mb-4"
@@ -83,13 +90,12 @@ export default function MembershipPage() {
               </li>
             ))}
           </ul>
-          <a
-            href="#"
+          <CheckoutButton
+            cadence="month"
             className="inline-flex items-center justify-center w-full py-3 px-8 rounded-full bg-white/60 backdrop-blur-md border border-black/5 text-[#1a1a1a] font-medium text-sm hover:bg-white/80 transition-all"
-            style={{ fontFamily: "Inter, sans-serif" }}
           >
             Monatlich starten
-          </a>
+          </CheckoutButton>
         </div>
 
         {/* Yearly */}
@@ -157,13 +163,12 @@ export default function MembershipPage() {
               </li>
             ))}
           </ul>
-          <a
-            href="#"
+          <CheckoutButton
+            cadence="year"
             className="inline-flex items-center justify-center w-full py-3 px-8 rounded-full bg-[#6C5CE7] text-white font-medium text-sm hover:bg-[#5A4BD1] transition-colors shadow-sm hover:shadow-md"
-            style={{ fontFamily: "Inter, sans-serif" }}
           >
             Jährlich starten
-          </a>
+          </CheckoutButton>
         </div>
       </div>
 
