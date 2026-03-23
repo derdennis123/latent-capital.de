@@ -1,7 +1,15 @@
 import { SignJWT } from "jose";
 
+export interface GhostNewsletter {
+  id: string;
+  name: string;
+  slug: string;
+  status: string;
+}
+
 export interface GhostMember {
   id: string;
+  uuid: string;
   email: string;
   name: string | null;
   status: "free" | "paid" | "comped";
@@ -16,6 +24,7 @@ export interface GhostMember {
     };
     current_period_end: string;
   }>;
+  newsletters: GhostNewsletter[];
   labels: Array<{ id: string; name: string; slug: string }>;
   created_at: string;
   updated_at: string;
@@ -189,6 +198,36 @@ export async function updateMember(
     method: "PUT",
     body: JSON.stringify({
       members: [data],
+    }),
+  });
+
+  return response.members[0];
+}
+
+export async function getMemberByUuid(
+  uuid: string
+): Promise<GhostMember | null> {
+  try {
+    const response = await adminFetch<{
+      members: GhostMember[];
+    }>(`members?filter=uuid:'${encodeURIComponent(uuid)}'&limit=1`);
+
+    return response.members[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function unsubscribeMember(
+  id: string,
+  newsletters: GhostNewsletter[]
+): Promise<GhostMember> {
+  const response = await adminFetch<{
+    members: GhostMember[];
+  }>(`members/${id}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      members: [{ newsletters }],
     }),
   });
 
