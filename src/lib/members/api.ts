@@ -188,6 +188,19 @@ export async function createOrGetMember(
   return response.members[0];
 }
 
+export async function compMember(id: string): Promise<GhostMember> {
+  const response = await adminFetch<{
+    members: GhostMember[];
+  }>(`members/${id}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      members: [{ comped: true }],
+    }),
+  });
+
+  return response.members[0];
+}
+
 export async function updateMember(
   id: string,
   data: { name?: string; labels?: Array<{ name: string }> }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createMagicLinkToken, sendMagicLinkEmail } from "@/lib/auth/magic-link";
-import { getMemberByEmail } from "@/lib/members/api";
+import { getMemberByEmail, compMember } from "@/lib/members/api";
 import crypto from "crypto";
 
 interface StripeEvent {
@@ -78,8 +78,18 @@ export async function POST(request: NextRequest) {
         // Wait briefly for Ghost to process its own Stripe webhook
         await new Promise((r) => setTimeout(r, 2000));
 
-        // Check if member exists in Ghost (Ghost should have created/updated them)
-        const member = await getMemberByEmail(email);
+        // Check if member exists in Ghost
+        let member = await getMemberByEmail(email);
+
+        // If Ghost didn't upgrade the member (common when a free member
+        // goes through Stripe checkout — Ghost can't link the new Stripe
+        // customer to the existing member), comp them via Admin API.
+        if (member && member.status === "free") {
+          console.log(
+            `[Stripe Webhook] Member ${email} still free after checkout, comping via Admin API`
+          );
+          member = await compMember(member.id);
+        }
 
         if (member && (member.status === "paid" || member.status === "comped")) {
           // Send magic link email from our system
