@@ -105,31 +105,17 @@ export async function POST(request: NextRequest) {
       member = await createOrGetMember(email);
     }
 
-    // 3. Upgrade if still free
+    // 3. Upgrade if still free — always upgrade directly via tier assignment.
+    // We bypass Ghost's webhook-based upgrade entirely because it fails to
+    // link Stripe subscriptions to existing free members.
     if (member.status === "free") {
-      if (ghostMemberId && member.id === ghostMemberId) {
-        // Direct checkout: upgrade via tier assignment
-        const tiers = await getTiers();
-        const paidTier = tiers.find((t) => t.type === "paid" && t.active);
-        if (paidTier) {
-          member = await upgradeMemberToPaid(member.id, paidTier.id);
-        }
-      } else {
-        // Ghost-managed checkout: wait a bit longer for Ghost webhook
-        for (let i = 0; i < 3; i++) {
-          await new Promise((r) => setTimeout(r, 2000));
-          member = (await getMemberByEmail(email)) ?? member;
-          if (member.status !== "free") break;
-        }
-
-        // If Ghost still hasn't upgraded, do it ourselves
-        if (member.status === "free") {
-          const tiers = await getTiers();
-          const paidTier = tiers.find((t) => t.type === "paid" && t.active);
-          if (paidTier) {
-            member = await upgradeMemberToPaid(member.id, paidTier.id);
-          }
-        }
+      const tiers = await getTiers();
+      const paidTier = tiers.find((t) => t.type === "paid" && t.active);
+      if (paidTier) {
+        console.log(
+          `[checkout-login] Upgrading member ${member.id} (${email}) to paid tier ${paidTier.id}`
+        );
+        member = await upgradeMemberToPaid(member.id, paidTier.id);
       }
     }
 

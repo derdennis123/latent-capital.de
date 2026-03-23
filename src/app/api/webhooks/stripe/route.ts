@@ -55,24 +55,6 @@ function verifyStripeSignature(
   );
 }
 
-/**
- * Wait for a Ghost member to reach paid/comped status with retries.
- * Returns the member if upgraded, null if still free after all retries.
- */
-async function waitForGhostUpgrade(
-  email: string,
-  maxRetries: number = 4,
-  initialDelayMs: number = 3000
-) {
-  for (let i = 0; i < maxRetries; i++) {
-    await new Promise((r) => setTimeout(r, initialDelayMs * (i + 1)));
-    const member = await getMemberByEmail(email);
-    if (member && (member.status === "paid" || member.status === "comped")) {
-      return member;
-    }
-  }
-  return null;
-}
 
 export async function POST(request: NextRequest) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -101,35 +83,31 @@ export async function POST(request: NextRequest) {
 
     if (email && session.payment_status === "paid") {
       try {
-        let member;
+        // Find or create the Ghost member, then upgrade to paid.
+        // We handle all cases here: logged-in, not-logged-in, existing
+        // free member, brand new user.
+        let member = ghostMemberId
+          ? await getMemberById(ghostMemberId)
+          : await getMemberByEmail(email);
 
-        if (ghostMemberId) {
-          // Direct checkout flow (existing logged-in member).
-          // Ghost doesn't know about this Stripe subscription, so we
-          // upgrade the member by assigning the paid tier via Admin API.
-          member = await getMemberById(ghostMemberId);
+        if (!member) {
+          // Wait a moment, then try again (race condition with Ghost)
+          await new Promise((r) => setTimeout(r, 3000));
+          member = await getMemberByEmail(email);
+        }
 
-          if (member && member.status === "free") {
-            console.log(
-              `[Stripe Webhook] Direct checkout for ${email}, upgrading member ${ghostMemberId} to paid tier`
-            );
-            const tiers = await getTiers();
-            const paidTier = tiers.find(
-              (t) => t.type === "paid" && t.active
-            );
+        // Upgrade if still free
+        if (member && member.status === "free") {
+          console.log(
+            `[Stripe Webhook] Upgrading member ${member.id} (${email}) to paid tier`
+          );
+          const tiers = await getTiers();
+          const paidTier = tiers.find(
+            (t) => t.type === "paid" && t.active
+          );
 
-            if (paidTier) {
-              member = await upgradeMemberToPaid(member.id, paidTier.id);
-            }
-          }
-        } else {
-          // Ghost-managed checkout (new user without existing account).
-          // Wait for Ghost to process its own Stripe webhook.
-          member = await waitForGhostUpgrade(email);
-
-          if (!member) {
-            // Ghost might have created the member during webhook processing
-            member = await getMemberByEmail(email);
+          if (paidTier) {
+            member = await upgradeMemberToPaid(member.id, paidTier.id);
           }
         }
 
