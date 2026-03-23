@@ -10,6 +10,7 @@ export default function AccountPage() {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -36,6 +37,19 @@ export default function AccountPage() {
     router.push("/");
   }
 
+  async function handlePortal() {
+    setPortalLoading(true);
+    try {
+      const res = await fetch("/api/account/portal", { method: "POST" });
+      if (!res.ok) throw new Error("Portal error");
+      const data = (await res.json()) as { url: string };
+      window.location.href = data.url;
+    } catch {
+      setPortalLoading(false);
+      alert("Fehler beim Öffnen des Abo-Portals. Bitte versuche es erneut.");
+    }
+  }
+
   const tierLabel =
     user.status === "paid"
       ? "Premium"
@@ -47,6 +61,8 @@ export default function AccountPage() {
     user.status === "paid" || user.status === "comped"
       ? "text-[#6C5CE7] bg-[#6C5CE7]/10"
       : "text-[#666] bg-black/5";
+
+  const isPaid = user.status === "paid" || user.status === "comped";
 
   return (
     <Container className="py-20">
@@ -95,6 +111,22 @@ export default function AccountPage() {
               </span>
             </div>
           </div>
+
+          {/* Subscription management for paid members */}
+          {isPaid && (
+            <div className="mt-8">
+              <button
+                onClick={handlePortal}
+                disabled={portalLoading}
+                className="w-full py-3 px-4 rounded-full bg-[#6C5CE7] text-white font-medium text-sm hover:bg-[#5A4BD1] transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                {portalLoading ? "Wird geladen..." : "Abo verwalten"}
+              </button>
+              <p className="text-xs text-[#999] text-center mt-2">
+                Rechnung, Zahlungsmethode &auml;ndern oder k&uuml;ndigen
+              </p>
+            </div>
+          )}
 
           {/* Upgrade CTA for free members */}
           {user.status === "free" && (
