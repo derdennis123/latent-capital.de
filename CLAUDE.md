@@ -131,7 +131,9 @@ REVALIDATE_SECRET          # For ISR revalidation webhook
 
 4. **Mailgun EU endpoint** — Mailgun is configured with the EU endpoint (`api.eu.mailgun.net`), not the US one.
 
-5. **Ghost Content API returns `html: null` for paid posts** — Use the Admin API to fetch full HTML for preview/teaser generation (see `splitHtmlForPreview` in `/src/lib/utils/splitHtml.ts`).
+5. **Ghost Content API returns empty string for paid posts** — Use the Admin API to fetch full HTML for preview/teaser generation (see `splitHtmlForPreview` in `/src/lib/utils/splitHtml.ts`).
+
+6. **Ghost Admin API requires `?formats=html`** — Without the `formats=html` query parameter, the Admin API returns `html: null` even for posts that have content. The content is stored as Lexical JSON internally; Ghost only renders it to HTML when explicitly asked via `formats=html`. This applies to both Content API and Admin API.
 
 ## Git Workflow
 
