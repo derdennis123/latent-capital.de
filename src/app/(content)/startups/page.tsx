@@ -27,7 +27,7 @@ export default async function StartupsPage({ searchParams }: StartupsPageProps) 
 
   try {
     const [postsResponse, allTags] = await Promise.all([
-      getPostsByTag(tag ? `startup+${tag}` : "startup", {
+      getPostsByTag(tag ? `startup+tag:${tag}` : "startup", {
         page: currentPage,
         limit: 12,
       }),
