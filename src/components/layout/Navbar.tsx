@@ -256,22 +256,23 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-3">
             {loading ? (
               <div className="w-20 h-8 rounded-full bg-black/5 animate-pulse" />
-            ) : user ? (
-              <UserDropdown />
             ) : (
               <>
                 <NewsletterDropdown />
-                <Link
-                  href="/membership"
-                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[#6C5CE7] text-white text-sm font-medium hover:bg-[#5A4BD1] transition-colors"
-                  style={{ fontFamily: "Inter, sans-serif" }}
-                >
-                  Premium werden
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M5 12h14" />
-                    <path d="m12 5 7 7-7 7" />
-                  </svg>
-                </Link>
+                {(!user || user.status === "free") && (
+                  <Link
+                    href="/membership"
+                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[#6C5CE7] text-white text-sm font-medium hover:bg-[#5A4BD1] transition-colors"
+                    style={{ fontFamily: "Inter, sans-serif" }}
+                  >
+                    Premium werden
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12h14" />
+                      <path d="m12 5 7 7-7 7" />
+                    </svg>
+                  </Link>
+                )}
+                {user && <UserDropdown />}
               </>
             )}
           </div>
@@ -345,33 +346,30 @@ export default function Navbar() {
                 )
               )}
               <div className="pt-4 space-y-3">
-                {user ? (
-                  <>
-                    <Link
-                      href="/account"
-                      className="block text-sm text-[#666] hover:text-[#1a1a1a]"
-                      onClick={() => setMobileOpen(false)}
-                    >
-                      Mein Konto
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    <Link
-                      href="/newsletter"
-                      className="block text-sm text-[#666] hover:text-[#1a1a1a]"
-                      onClick={() => setMobileOpen(false)}
-                    >
-                      Newsletter
-                    </Link>
-                    <Link
-                      href="/membership"
-                      className="inline-block px-6 py-2.5 rounded-full bg-[#6C5CE7] text-white text-sm font-medium hover:bg-[#5A4BD1] transition-colors"
-                      onClick={() => setMobileOpen(false)}
-                    >
-                      Premium werden
-                    </Link>
-                  </>
+                <Link
+                  href="/newsletter"
+                  className="block text-sm text-[#666] hover:text-[#1a1a1a]"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  Newsletter
+                </Link>
+                {(!user || user.status === "free") && (
+                  <Link
+                    href="/membership"
+                    className="inline-block px-6 py-2.5 rounded-full bg-[#6C5CE7] text-white text-sm font-medium hover:bg-[#5A4BD1] transition-colors"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    Premium werden
+                  </Link>
+                )}
+                {user && (
+                  <Link
+                    href="/account"
+                    className="block text-sm text-[#666] hover:text-[#1a1a1a]"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    Mein Konto
+                  </Link>
                 )}
               </div>
             </div>
