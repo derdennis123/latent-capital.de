@@ -54,6 +54,7 @@ export async function adminFetchPost(slug: string): Promise<string | null> {
       `/ghost/api/admin/posts/slug/${slug}/`,
       config.url
     );
+    url.searchParams.set("formats", "html");
 
     const response = await fetch(url.toString(), {
       headers: {
