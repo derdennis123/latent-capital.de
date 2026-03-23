@@ -57,15 +57,33 @@ Two Stripe webhook endpoints exist:
 - Magic links use a separate secret (`AUTH_SECRET` + `"_magic"` suffix)
 - `/api/auth/me` re-checks Ghost member status on each request and auto-updates the session cookie if status changed (catches upgrades/downgrades)
 
-### Checkout Flow (Free → Paid Upgrade)
+### Checkout Flow (Free → Paid Upgrade) — Instant Login
+
+The primary login after checkout happens **instantly via Stripe session verification** — no magic link required.
 
 1. User clicks checkout button → POST `/api/checkout`
-2. `/api/checkout` calls Ghost's `/members/api/create-stripe-checkout-session/`
-3. If user is logged in, their email is passed as `customerEmail` for Stripe pre-fill
-4. User completes Stripe checkout → redirected to `/membership?success=true`
-5. Stripe sends webhook to Ghost (via proxy) → Ghost updates member to "paid"
-6. Stripe sends webhook to our endpoint → we send magic link email
-7. On success page: if user was logged in, session auto-refreshes from Ghost; if not logged in, they enter email to receive magic link
+2. `/api/checkout` creates Stripe Checkout Session
+   - If logged in: `createDirectCheckoutSession()` via Stripe API (avoids orphaned Stripe customer)
+   - If not logged in: `createCheckoutSession()` via Ghost's endpoint
+3. Success URL includes `{CHECKOUT_SESSION_ID}` template variable (Stripe replaces this on redirect)
+4. User completes Stripe checkout → redirected to `/membership?success=true&session_id=cs_live_xxx`
+5. **Instant login (primary path)**:
+   - `CheckoutBanner` detects `session_id` in URL
+   - Calls `POST /api/auth/checkout-login` with the `sessionId`
+   - Backend verifies session with Stripe API (`stripe.checkout.sessions.retrieve`)
+   - Stripe confirms: `payment_status === "paid"`, returns customer email
+   - Backend finds Ghost member by email (with retry/backoff for webhook race condition)
+   - If member is still "free", upgrades via tier assignment
+   - Sets `lc_session` cookie → user is **instantly logged in**
+   - Shows "Willkommen bei Latent Capital Premium!" → redirect to homepage after 2.5s
+6. **Background (parallel)**: Stripe webhooks fire:
+   - Ghost webhook (via proxy) → Ghost updates member to "paid"
+   - Our custom webhook → sends magic link email as **backup** (for browser switch / cookie loss)
+7. **Fallback**: If instant login fails or no `session_id` in URL → magic link email form shown
+
+**Race condition handling**: `/api/auth/checkout-login` retries finding the Ghost member up to 4 times with 1.5s backoff. If Ghost webhook hasn't created the member yet, it creates one via `createOrGetMember()`. If member exists but is still "free", it waits up to 6s more for Ghost, then upgrades directly via tier assignment.
+
+**Security**: The Stripe session ID is proof-of-payment tied to the browser session. It can only be used once to verify payment status, and the Stripe API confirms the payment was actually completed.
 
 ### Ghost Admin API
 
@@ -85,7 +103,7 @@ AUTH_SECRET                # JWT signing secret (min 32 chars)
 MAILGUN_API_KEY            # Mailgun API key
 MAILGUN_DOMAIN             # mg.latent-capital.de
 MAILGUN_FROM               # Sender address
-STRIPE_SECRET_KEY          # For billing portal only
+STRIPE_SECRET_KEY          # For billing portal + checkout-login session verification
 STRIPE_WEBHOOK_SECRET      # For /api/webhooks/stripe signature verification
 REVALIDATE_SECRET          # For ISR revalidation webhook
 ```
@@ -93,12 +111,13 @@ REVALIDATE_SECRET          # For ISR revalidation webhook
 ## Key File Locations
 
 ### API Routes
-- `/src/app/api/checkout/route.ts` — Stripe checkout initiation
+- `/src/app/api/checkout/route.ts` — Stripe checkout initiation (success URL includes `{CHECKOUT_SESSION_ID}`)
+- `/src/app/api/auth/checkout-login/route.ts` — **Instant post-checkout login** (verifies Stripe session, sets cookie)
 - `/src/app/api/auth/me/route.ts` — Session check (auto-refreshes from Ghost)
 - `/src/app/api/auth/refresh/route.ts` — Explicit session refresh
 - `/src/app/api/auth/verify/route.ts` — Magic link verification
 - `/src/app/api/auth/send-magic-link/route.ts` — Send magic link email
-- `/src/app/api/webhooks/stripe/route.ts` — Our Stripe webhook (magic link sender)
+- `/src/app/api/webhooks/stripe/route.ts` — Our Stripe webhook (magic link sender, backup)
 - `/src/app/members/webhooks/stripe/route.ts` — **Proxy** for Ghost's Stripe webhook
 - `/src/app/api/account/portal/route.ts` — Stripe billing portal
 
@@ -125,7 +144,7 @@ REVALIDATE_SECRET          # For ISR revalidation webhook
 
 1. **Ghost redeploy resets Stripe webhook URL** — Ghost re-registers its webhook on boot using its `url` config. Since that points to the frontend, the proxy route at `/members/webhooks/stripe/` must exist in Next.js.
 
-2. **Session says "free" after payment** — The JWT session caches member status. `/api/auth/me` auto-refreshes from Ghost, but there can be a delay (1-10s) while Ghost processes the Stripe webhook. The CheckoutBanner has retry logic for this.
+2. **Session says "free" after payment** — Mostly eliminated by the instant checkout-login flow. The `/api/auth/checkout-login` endpoint handles the race condition with Ghost by retrying member lookup with backoff, then upgrading directly via tier assignment if needed. The old polling via `/api/auth/refresh` is no longer the primary mechanism.
 
 3. **Ghost Admin API key rotation** — If the Ghost Admin API key changes, update `GHOST_ADMIN_API_KEY` on the `web` service in Railway. The key is in `{id}:{hex_secret}` format.
 
