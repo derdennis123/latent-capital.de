@@ -341,19 +341,15 @@ const STRIPE_PRICES = {
 
 /**
  * Create a Stripe checkout session directly (bypassing Ghost's endpoint).
- * This avoids Ghost's broken member-linking logic that fails to upgrade
- * existing free members to paid when they use the same email.
- *
- * Used for ALL checkouts — both logged-in and not-logged-in users.
- * - Logged-in: passes email + ghost_member_id for instant linking
- * - Not logged-in: Stripe asks for email, checkout-login handles the rest
+ * Used for existing logged-in members to avoid orphaned Stripe customers.
+ * Passes ghost_member_id as metadata so the webhook can link the subscription.
  */
 export async function createDirectCheckoutSession(
   cadence: "month" | "year",
   successUrl: string,
   cancelUrl: string,
-  customerEmail?: string,
-  ghostMemberId?: string
+  customerEmail: string,
+  ghostMemberId: string
 ): Promise<string> {
   const stripeKey = process.env.STRIPE_SECRET_KEY;
   if (!stripeKey) {
@@ -366,14 +362,9 @@ export async function createDirectCheckoutSession(
   formData.set("line_items[0][quantity]", "1");
   formData.set("success_url", successUrl);
   formData.set("cancel_url", cancelUrl);
+  formData.set("customer_email", customerEmail);
+  formData.set("metadata[ghost_member_id]", ghostMemberId);
   formData.set("allow_promotion_codes", "true");
-
-  if (customerEmail) {
-    formData.set("customer_email", customerEmail);
-  }
-  if (ghostMemberId) {
-    formData.set("metadata[ghost_member_id]", ghostMemberId);
-  }
 
   const response = await fetch(
     "https://api.stripe.com/v1/checkout/sessions",
