@@ -135,6 +135,7 @@ src/
 | `/themen/[slug]` | Artikel eines Themas |
 | `/newsletter` | Newsletter-Signup + Archiv |
 | `/membership` | Premium-Pricing (€29/Mo, €249/Jahr) |
+| `/unsubscribe` | Newsletter-Abmeldung (UUID aus Ghost-E-Mail) |
 | `/login` | Magic Link Login |
 | `/about` | Über uns |
 | `/impressum` | Impressum |
@@ -153,6 +154,7 @@ src/
 | `/api/auth/verify` | GET | Token validieren, Session erstellen |
 | `/api/auth/me` | GET | Aktuellen User zurückgeben |
 | `/api/auth/logout` | POST | Session-Cookie löschen |
+| `/api/unsubscribe` | POST | Newsletter-Abmeldung via Ghost Admin API |
 | `/api/revalidate` | POST | ISR Revalidierung (Ghost Webhook) |
 | `/feed.xml` | GET | RSS Feed |
 
@@ -169,7 +171,12 @@ src/
 ### Admin API (authentifiziert)
 - Member erstellen/lesen/updaten
 - JWT-Signing mit Key:Secret Format
-- Verwendet für: Newsletter-Signup, Magic Link Verification
+- Verwendet für: Newsletter-Signup, Magic Link Verification, Unsubscribe
+
+### Ghost URL-Konfiguration (Railway)
+- Ghost Environment Variable `url` muss auf `https://www.latent-capital.de` zeigen
+- Damit zeigen alle Ghost-generierten E-Mail-Links (Unsubscribe, etc.) auf das Frontend
+- Die `/unsubscribe` Seite nimmt den `?uuid=` Parameter entgegen und meldet über die Admin API ab
 
 ### Ghost Post → Frontend Routing
 | Ghost Tag | Frontend Route |
