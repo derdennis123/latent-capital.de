@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getTiers, createCheckoutSession } from "@/lib/members/api";
+import {
+  getTiers,
+  createCheckoutSession,
+  createDirectCheckoutSession,
+} from "@/lib/members/api";
 import { getSession } from "@/lib/auth/session";
 
 export async function POST(request: NextRequest) {
@@ -15,7 +19,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find the paid tier
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const successUrl = `${siteUrl}/membership?success=true`;
+    const cancelUrl = `${siteUrl}/membership?cancelled=true`;
+
+    // If user is logged in, create checkout directly via Stripe API.
+    // This avoids Ghost creating an orphaned Stripe customer that can't
+    // be linked to the existing member (the free→paid upgrade bug).
+    const session = await getSession();
+
+    if (session) {
+      const checkoutUrl = await createDirectCheckoutSession(
+        cadence,
+        successUrl,
+        cancelUrl,
+        session.email,
+        session.memberId
+      );
+      return NextResponse.json({ url: checkoutUrl });
+    }
+
+    // For non-logged-in users, use Ghost's checkout endpoint.
+    // Ghost will create the member and link the Stripe customer correctly.
     const tiers = await getTiers();
     const paidTier = tiers.find((t) => t.type === "paid" && t.active);
 
@@ -26,19 +52,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-
-    // If user is logged in, pass their email to pre-fill Stripe checkout
-    const session = await getSession();
-    const customerEmail = session?.email;
-
     const checkoutUrl = await createCheckoutSession(
       paidTier.id,
       cadence,
-      `${siteUrl}/membership?success=true`,
-      `${siteUrl}/membership?cancelled=true`,
-      customerEmail
+      successUrl,
+      cancelUrl
     );
 
     return NextResponse.json({ url: checkoutUrl });

@@ -201,6 +201,30 @@ export async function compMember(id: string): Promise<GhostMember> {
   return response.members[0];
 }
 
+/**
+ * Upgrade a free member to paid by assigning the paid tier.
+ * Unlike compMember, this does NOT create a $0 Stripe subscription.
+ */
+export async function upgradeMemberToPaid(
+  memberId: string,
+  paidTierId: string
+): Promise<GhostMember> {
+  const response = await adminFetch<{
+    members: GhostMember[];
+  }>(`members/${memberId}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      members: [
+        {
+          tiers: [{ id: paidTierId }],
+        },
+      ],
+    }),
+  });
+
+  return response.members[0];
+}
+
 export async function updateMember(
   id: string,
   data: { name?: string; labels?: Array<{ name: string }> }
@@ -309,8 +333,145 @@ export async function createCheckoutSession(
   return data.url;
 }
 
+// Stripe price IDs for the paid tier (Ghost-managed via Stripe Connect)
+const STRIPE_PRICES = {
+  month: "price_1TE76QL2AhX45KRgp6cXLxuc", // €29/month
+  year: "price_1TE76RL2AhX45KRgugxG8S4F", // €249/year
+} as const;
+
+/**
+ * Create a Stripe checkout session directly (bypassing Ghost's endpoint).
+ * Used for existing logged-in members to avoid orphaned Stripe customers.
+ * Passes ghost_member_id as metadata so the webhook can link the subscription.
+ */
+export async function createDirectCheckoutSession(
+  cadence: "month" | "year",
+  successUrl: string,
+  cancelUrl: string,
+  customerEmail: string,
+  ghostMemberId: string
+): Promise<string> {
+  const stripeKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeKey) {
+    throw new Error("STRIPE_SECRET_KEY is required for direct checkout");
+  }
+
+  const formData = new URLSearchParams();
+  formData.set("mode", "subscription");
+  formData.set("line_items[0][price]", STRIPE_PRICES[cadence]);
+  formData.set("line_items[0][quantity]", "1");
+  formData.set("success_url", successUrl);
+  formData.set("cancel_url", cancelUrl);
+  formData.set("customer_email", customerEmail);
+  formData.set("metadata[ghost_member_id]", ghostMemberId);
+  formData.set("allow_promotion_codes", "true");
+
+  const response = await fetch(
+    "https://api.stripe.com/v1/checkout/sessions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${stripeKey}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: formData,
+    }
+  );
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(
+      `Stripe checkout session error (${response.status}): ${errorBody}`
+    );
+  }
+
+  const data = (await response.json()) as { url: string };
+  return data.url;
+}
+
+/**
+ * Find the Stripe customer ID for a member.
+ * First checks Ghost's tracked subscriptions, then falls back to
+ * looking up active Stripe subscriptions by email (for members
+ * upgraded via direct checkout).
+ */
+async function findStripeCustomerId(
+  memberId: string,
+  email: string
+): Promise<string> {
+  const stripeKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeKey) {
+    throw new Error("STRIPE_SECRET_KEY environment variable is required");
+  }
+
+  // Try Ghost-tracked subscription first
+  try {
+    const fullMember = await adminFetch<{
+      members: Array<{
+        subscriptions: Array<{
+          customer: { id: string };
+        }>;
+      }>;
+    }>(`members/${memberId}?include=subscriptions`);
+
+    const customerId =
+      fullMember.members[0]?.subscriptions[0]?.customer?.id;
+    if (customerId) return customerId;
+  } catch {
+    // Fall through to Stripe lookup
+  }
+
+  // Fallback: find Stripe customer by email with an active subscription
+  const searchParams = new URLSearchParams();
+  searchParams.set("email", email);
+  searchParams.set("limit", "5");
+
+  const response = await fetch(
+    `https://api.stripe.com/v1/customers?${searchParams}`,
+    {
+      headers: { Authorization: `Bearer ${stripeKey}` },
+    }
+  );
+
+  if (!response.ok) throw new Error("Failed to search Stripe customers");
+
+  const data = (await response.json()) as {
+    data: Array<{ id: string }>;
+  };
+
+  // Find the customer that has an active paid subscription
+  for (const customer of data.data) {
+    const subsResponse = await fetch(
+      `https://api.stripe.com/v1/subscriptions?customer=${customer.id}&status=active&limit=1`,
+      {
+        headers: { Authorization: `Bearer ${stripeKey}` },
+      }
+    );
+
+    if (subsResponse.ok) {
+      const subsData = (await subsResponse.json()) as {
+        data: Array<{
+          id: string;
+          items: {
+            data: Array<{ price: { unit_amount: number } }>;
+          };
+        }>;
+      };
+
+      // Pick the customer with a non-zero subscription (skip $0 comp subs)
+      const paidSub = subsData.data.find((s) =>
+        s.items.data.some((item) => item.price.unit_amount > 0)
+      );
+      if (paidSub) return customer.id;
+    }
+  }
+
+  throw new Error("No Stripe customer with active subscription found");
+}
+
 export async function createPortalSession(
   memberId: string,
+  email: string,
   returnUrl: string
 ): Promise<string> {
   const stripeKey = process.env.STRIPE_SECRET_KEY;
@@ -318,27 +479,8 @@ export async function createPortalSession(
     throw new Error("STRIPE_SECRET_KEY environment variable is required");
   }
 
-  // Get member to find Stripe customer ID
-  const member = await getMemberById(memberId);
-  if (!member) throw new Error("Member not found");
+  const customerId = await findStripeCustomerId(memberId, email);
 
-  const subscription = member.subscriptions[0];
-  if (!subscription) throw new Error("No active subscription");
-
-  // The Ghost Admin API includes customer ID in subscription data
-  // We need to fetch with the full subscription include
-  const fullMember = await adminFetch<{
-    members: Array<{
-      subscriptions: Array<{
-        customer: { id: string };
-      }>;
-    }>;
-  }>(`members/${memberId}?include=subscriptions`);
-
-  const customerId = fullMember.members[0]?.subscriptions[0]?.customer?.id;
-  if (!customerId) throw new Error("No Stripe customer found");
-
-  // Create Stripe billing portal session via Stripe API
   const formData = new URLSearchParams();
   formData.set("customer", customerId);
   formData.set("return_url", returnUrl);
@@ -357,7 +499,9 @@ export async function createPortalSession(
 
   if (!portalResponse.ok) {
     const errorBody = await portalResponse.text();
-    throw new Error(`Stripe portal error (${portalResponse.status}): ${errorBody}`);
+    throw new Error(
+      `Stripe portal error (${portalResponse.status}): ${errorBody}`
+    );
   }
 
   const portal = (await portalResponse.json()) as { url: string };

@@ -22,6 +22,7 @@ export async function POST() {
 
     const portalUrl = await createPortalSession(
       session.memberId,
+      session.email,
       `${siteUrl}/account`
     );
 
