@@ -40,6 +40,11 @@ export default function PostCardFeatured({ post }: PostCardFeaturedProps) {
                 {post.primary_tag.name}
               </Badge>
             )}
+            {post.visibility === "paid" && (
+              <Badge className="!bg-[#6C5CE7]/10 !text-[#6C5CE7] !border-[#6C5CE7]/20">
+                Premium
+              </Badge>
+            )}
           </div>
           <Link href={url}>
             <h2
