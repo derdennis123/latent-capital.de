@@ -26,7 +26,7 @@ export default async function DeepDivesPage({ searchParams }: DeepDivesPageProps
 
   try {
     const [postsResponse, allTags] = await Promise.all([
-      getPostsByTag(tag ? `deep-dive+${tag}` : "deep-dive", {
+      getPostsByTag(tag ? `deep-dive+tag:${tag}` : "deep-dive", {
         page: currentPage,
         limit: 12,
       }),

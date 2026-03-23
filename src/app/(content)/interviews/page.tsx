@@ -26,7 +26,7 @@ export default async function InterviewsPage({ searchParams }: InterviewsPagePro
 
   try {
     const [postsResponse, allTags] = await Promise.all([
-      getPostsByTag(tag ? `interview+${tag}` : "interview", {
+      getPostsByTag(tag ? `interview+tag:${tag}` : "interview", {
         page: currentPage,
         limit: 12,
       }),
