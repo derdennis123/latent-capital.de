@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createMagicLinkToken, sendMagicLinkEmail } from "@/lib/auth/magic-link";
-import { getMemberByEmail } from "@/lib/members/api";
+import {
+  getMemberByEmail,
+  getMemberById,
+  getTiers,
+  upgradeMemberToPaid,
+} from "@/lib/members/api";
 import crypto from "crypto";
 
 interface StripeEvent {
@@ -12,6 +17,7 @@ interface StripeEvent {
       customer_details?: { email?: string };
       mode?: string;
       payment_status?: string;
+      metadata?: Record<string, string>;
     };
   };
 }
@@ -49,6 +55,25 @@ function verifyStripeSignature(
   );
 }
 
+/**
+ * Wait for a Ghost member to reach paid/comped status with retries.
+ * Returns the member if upgraded, null if still free after all retries.
+ */
+async function waitForGhostUpgrade(
+  email: string,
+  maxRetries: number = 4,
+  initialDelayMs: number = 3000
+) {
+  for (let i = 0; i < maxRetries; i++) {
+    await new Promise((r) => setTimeout(r, initialDelayMs * (i + 1)));
+    const member = await getMemberByEmail(email);
+    if (member && (member.status === "paid" || member.status === "comped")) {
+      return member;
+    }
+  }
+  return null;
+}
+
 export async function POST(request: NextRequest) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -72,17 +97,46 @@ export async function POST(request: NextRequest) {
     const session = event.data.object;
     const email =
       session.customer_email || session.customer_details?.email;
+    const ghostMemberId = session.metadata?.ghost_member_id;
 
     if (email && session.payment_status === "paid") {
       try {
-        // Wait briefly for Ghost to process its own Stripe webhook
-        await new Promise((r) => setTimeout(r, 2000));
+        let member;
 
-        // Check if member exists in Ghost (Ghost should have created/updated them)
-        const member = await getMemberByEmail(email);
+        if (ghostMemberId) {
+          // Direct checkout flow (existing logged-in member).
+          // Ghost doesn't know about this Stripe subscription, so we
+          // upgrade the member by assigning the paid tier via Admin API.
+          member = await getMemberById(ghostMemberId);
 
-        if (member && (member.status === "paid" || member.status === "comped")) {
-          // Send magic link email from our system
+          if (member && member.status === "free") {
+            console.log(
+              `[Stripe Webhook] Direct checkout for ${email}, upgrading member ${ghostMemberId} to paid tier`
+            );
+            const tiers = await getTiers();
+            const paidTier = tiers.find(
+              (t) => t.type === "paid" && t.active
+            );
+
+            if (paidTier) {
+              member = await upgradeMemberToPaid(member.id, paidTier.id);
+            }
+          }
+        } else {
+          // Ghost-managed checkout (new user without existing account).
+          // Wait for Ghost to process its own Stripe webhook.
+          member = await waitForGhostUpgrade(email);
+
+          if (!member) {
+            // Ghost might have created the member during webhook processing
+            member = await getMemberByEmail(email);
+          }
+        }
+
+        if (
+          member &&
+          (member.status === "paid" || member.status === "comped")
+        ) {
           const siteUrl =
             process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
           const token = await createMagicLinkToken(email);
@@ -90,10 +144,15 @@ export async function POST(request: NextRequest) {
 
           await sendMagicLinkEmail(email, magicLinkUrl);
           console.log(`[Stripe Webhook] Magic link sent to ${email}`);
+        } else {
+          console.error(
+            `[Stripe Webhook] Member ${email} not upgraded after checkout. ` +
+              `Status: ${member?.status ?? "not found"}. Manual intervention needed.`
+          );
         }
       } catch (error) {
         // Log but don't fail — the webhook should return 200
-        console.error("[Stripe Webhook] Error sending magic link:", error);
+        console.error("[Stripe Webhook] Error processing checkout:", error);
       }
     }
   }
