@@ -59,8 +59,19 @@ export async function adminFetchPosts(
 
     if (params) {
       for (const [key, value] of Object.entries(params)) {
-        url.searchParams.set(key, value);
+        if (key === "filter") {
+          // Append status:published to any existing filter
+          url.searchParams.set(key, `${value}+status:published`);
+        } else {
+          url.searchParams.set(key, value);
+        }
       }
+    }
+
+    // Ensure we always filter to published posts (Admin API returns drafts by default)
+    if (!url.searchParams.get("filter")?.includes("status:")) {
+      const existing = url.searchParams.get("filter");
+      url.searchParams.set("filter", existing ? `${existing}+status:published` : "status:published");
     }
 
     const response = await fetch(url.toString(), {
