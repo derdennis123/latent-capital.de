@@ -11,8 +11,13 @@ interface PostCardProps {
   post: GhostPost;
 }
 
+function isPaidPost(post: GhostPost): boolean {
+  return post.visibility !== "public";
+}
+
 export default function PostCard({ post }: PostCardProps) {
   const url = getPostUrl(post);
+  const paid = isPaidPost(post);
 
   return (
     <GlassCard hover className="overflow-hidden flex flex-col">
@@ -28,14 +33,14 @@ export default function PostCard({ post }: PostCardProps) {
         </Link>
       )}
       <div className="p-6 flex flex-col flex-1">
-        {(post.primary_tag || post.visibility === "paid") && (
+        {(post.primary_tag || paid) && (
           <div className="mb-3 flex items-center gap-2">
             {post.primary_tag && (
               <Badge href={`/themen/${post.primary_tag.slug}`}>
                 {post.primary_tag.name}
               </Badge>
             )}
-            {post.visibility === "paid" && (
+            {paid && (
               <Badge className="!bg-[#6C5CE7]/10 !text-[#6C5CE7] !border-[#6C5CE7]/20">
                 Premium
               </Badge>

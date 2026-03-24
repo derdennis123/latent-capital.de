@@ -11,8 +11,13 @@ interface PostCardFeaturedProps {
   post: GhostPost;
 }
 
+function isPaidPost(post: GhostPost): boolean {
+  return post.visibility !== "public";
+}
+
 export default function PostCardFeatured({ post }: PostCardFeaturedProps) {
   const url = getPostUrl(post);
+  const paid = isPaidPost(post);
 
   return (
     <GlassCard hover className="overflow-hidden">
@@ -40,7 +45,7 @@ export default function PostCardFeatured({ post }: PostCardFeaturedProps) {
                 {post.primary_tag.name}
               </Badge>
             )}
-            {post.visibility === "paid" && (
+            {paid && (
               <Badge className="!bg-[#6C5CE7]/10 !text-[#6C5CE7] !border-[#6C5CE7]/20">
                 Premium
               </Badge>

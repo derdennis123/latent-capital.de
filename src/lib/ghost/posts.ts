@@ -1,5 +1,5 @@
 import { ghostFetch } from "@/lib/ghost/client";
-import { adminFetchPost } from "@/lib/ghost/admin-posts";
+import { adminFetchPost, adminFetchPosts } from "@/lib/ghost/admin-posts";
 import type { GhostPost, GhostPostsResponse } from "@/lib/ghost/types";
 
 interface GetPostsOptions {
@@ -24,6 +24,11 @@ export async function getPosts(
     params.filter = options.filter;
   }
 
+  // Use Admin API first — it returns excerpt and correct visibility for paid posts.
+  // Fall back to Content API if Admin API is unavailable.
+  const adminResult = await adminFetchPosts(params);
+  if (adminResult) return adminResult;
+
   return ghostFetch<GhostPostsResponse>("posts", params);
 }
 
@@ -39,7 +44,7 @@ export async function getPostBySlug(
 
     // For paid/members posts, Content API returns html as null.
     // Fetch full HTML via Admin API so we can show a preview teaser.
-    if (post && !post.html && (post.visibility === "paid" || post.visibility === "members")) {
+    if (post && !post.html && post.visibility !== "public") {
       const fullHtml = await adminFetchPost(slug);
       if (fullHtml) {
         post.html = fullHtml;

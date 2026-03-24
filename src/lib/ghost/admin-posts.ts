@@ -1,6 +1,7 @@
-// Fetch post HTML via Ghost Admin API (returns full content for paid posts)
+// Ghost Admin API helpers (returns full content & excerpts for paid posts)
 
 import { SignJWT } from "jose";
+import type { GhostPostsResponse } from "@/lib/ghost/types";
 
 function getAdminConfig() {
   const url = process.env.GHOST_URL || process.env.NEXT_PUBLIC_GHOST_URL;
@@ -38,6 +39,41 @@ async function getAdminToken(apiKey: string): Promise<string> {
     .setExpirationTime("5m")
     .setAudience("/admin/")
     .sign(secret);
+}
+
+/**
+ * Fetch posts listing via Admin API.
+ * Unlike Content API, Admin API returns excerpt/custom_excerpt and
+ * correct visibility for paid posts without requiring a member token.
+ */
+export async function adminFetchPosts(
+  params?: Record<string, string>
+): Promise<GhostPostsResponse | null> {
+  const config = getAdminConfig();
+  if (!config) return null;
+
+  try {
+    const token = await getAdminToken(config.key);
+    const url = new URL("/ghost/api/admin/posts/", config.url);
+    url.searchParams.set("formats", "html");
+
+    if (params) {
+      for (const [key, value] of Object.entries(params)) {
+        url.searchParams.set(key, value);
+      }
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: { Authorization: `Ghost ${token}` },
+      next: { revalidate: 300 },
+    });
+
+    if (!response.ok) return null;
+
+    return (await response.json()) as GhostPostsResponse;
+  } catch {
+    return null;
+  }
 }
 
 /**
