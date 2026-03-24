@@ -2,6 +2,9 @@ import type { MetadataRoute } from "next";
 import { getPosts } from "@/lib/ghost";
 import { getPostUrlAbsolute } from "@/lib/routing";
 
+// Revalidate sitemap every hour so new Ghost posts appear without redeploy
+export const revalidate = 3600;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://latent-capital.de";
@@ -52,8 +55,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         postPages.push({
           url: getPostUrlAbsolute(siteUrl, post),
           lastModified: new Date(post.updated_at),
-          changeFrequency: "monthly",
-          priority: 0.7,
+          changeFrequency: "weekly",
+          priority: 0.8,
         });
       }
 
